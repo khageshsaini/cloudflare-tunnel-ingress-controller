@@ -30,20 +30,13 @@ Want to DIY? The following instructions would help your bootstrap a minikube Kub
 minikube start
 ```
 
-- Add Helm Repository;
-
-```bash
-helm repo add strrl.dev https://helm.strrl.dev
-helm repo update
-```
-
 - Install with Helm:
 
 ```bash
 helm upgrade --install --wait \
   -n cloudflare-tunnel-ingress-controller --create-namespace \
   cloudflare-tunnel-ingress-controller \
-  strrl.dev/cloudflare-tunnel-ingress-controller \
+  oci://ghcr.io/khageshsaini/helm-charts/cloudflare-tunnel-ingress-controller --version 0.0.19 \
   --set=cloudflare.apiToken="<cloudflare-api-token>",cloudflare.accountId="<cloudflare-account-id>",cloudflare.tunnelName="<your-favorite-tunnel-name>" 
 ```
 
@@ -64,12 +57,6 @@ kubectl -n kubernetes-dashboard \
   --rule="<your-favorite-domain>/*=kubernetes-dashboard:80"\
   --class cloudflare-tunnel
 ```
-
-> for example, I would use `dash.strrl.cloud` as my favorite domain here.
-
-- At last, access the dashboard via the domain you just created:
-
-![dash.strrl.cloud](./static/dash.strrl.cloud.png)
 
 - Done! Enjoy! 🎉
 
