@@ -80,6 +80,9 @@ cloudflared:
     tag: latest
   replicaCount: 1
   protocol: auto
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 cloudflaredServiceMonitor:
   create: false

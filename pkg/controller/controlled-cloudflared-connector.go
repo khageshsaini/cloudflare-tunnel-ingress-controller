@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strconv"
 
@@ -108,6 +109,47 @@ func cloudflaredConnectDeploymentTemplating(protocol string, token string, names
 		pullPolicy = "IfNotPresent"
 	}
 
+	// Get scheduling configuration from environment variables
+	nodeSelector := getNodeSelectorFromEnv()
+	tolerations := getTolerationsFromEnv()
+	affinity := getAffinityFromEnv()
+
+	podSpec := v1.PodSpec{
+		Containers: []v1.Container{
+			{
+				Name:            appName,
+				Image:           image,
+				ImagePullPolicy: v1.PullPolicy(pullPolicy),
+				Command: []string{
+					"cloudflared",
+					"--edge-ip-version",
+					"auto",
+					"--protocol",
+					protocol,
+					"--no-autoupdate",
+					"tunnel",
+					"--metrics",
+					"[::]:44483",
+					"run",
+					"--token",
+					token,
+				},
+			},
+		},
+		RestartPolicy: v1.RestartPolicyAlways,
+	}
+
+	// Apply scheduling configuration if provided
+	if nodeSelector != nil {
+		podSpec.NodeSelector = nodeSelector
+	}
+	if tolerations != nil {
+		podSpec.Tolerations = tolerations
+	}
+	if affinity != nil {
+		podSpec.Affinity = affinity
+	}
+
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
@@ -133,30 +175,7 @@ func cloudflaredConnectDeploymentTemplating(protocol string, token string, names
 						"strrl.dev/cloudflare-tunnel-ingress-controller": "controlled-cloudflared-connector",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:            appName,
-							Image:           image,
-							ImagePullPolicy: v1.PullPolicy(pullPolicy),
-							Command: []string{
-								"cloudflared",
-								"--edge-ip-version",
-								"auto",
-								"--protocol",
-								protocol,
-								"--no-autoupdate",
-								"tunnel",
-								"--metrics",
-								"[::]:44483",
-								"run",
-								"--token",
-								token,
-							},
-						},
-					},
-					RestartPolicy: v1.RestartPolicyAlways,
-				},
+				Spec: podSpec,
 			},
 		},
 	}
@@ -172,4 +191,55 @@ func getDesiredReplicas() (int32, error) {
 		return 0, errors.Wrap(err, "invalid replica count")
 	}
 	return int32(replicas), nil
+}
+
+// getNodeSelectorFromEnv parses the CLOUDFLARED_NODE_SELECTOR environment variable
+func getNodeSelectorFromEnv() map[string]string {
+	nodeSelectorJSON := os.Getenv("CLOUDFLARED_NODE_SELECTOR")
+	if nodeSelectorJSON == "" || nodeSelectorJSON == "{}" {
+		return nil
+	}
+
+	var nodeSelector map[string]string
+	err := json.Unmarshal([]byte(nodeSelectorJSON), &nodeSelector)
+	if err != nil {
+		// Log error but don't fail deployment
+		return nil
+	}
+
+	return nodeSelector
+}
+
+// getTolerationsFromEnv parses the CLOUDFLARED_TOLERATIONS environment variable
+func getTolerationsFromEnv() []v1.Toleration {
+	tolerationsJSON := os.Getenv("CLOUDFLARED_TOLERATIONS")
+	if tolerationsJSON == "" || tolerationsJSON == "[]" {
+		return nil
+	}
+
+	var tolerations []v1.Toleration
+	err := json.Unmarshal([]byte(tolerationsJSON), &tolerations)
+	if err != nil {
+		// Log error but don't fail deployment
+		return nil
+	}
+
+	return tolerations
+}
+
+// getAffinityFromEnv parses the CLOUDFLARED_AFFINITY environment variable
+func getAffinityFromEnv() *v1.Affinity {
+	affinityJSON := os.Getenv("CLOUDFLARED_AFFINITY")
+	if affinityJSON == "" || affinityJSON == "{}" {
+		return nil
+	}
+
+	var affinity v1.Affinity
+	err := json.Unmarshal([]byte(affinityJSON), &affinity)
+	if err != nil {
+		// Log error but don't fail deployment
+		return nil
+	}
+
+	return &affinity
 }

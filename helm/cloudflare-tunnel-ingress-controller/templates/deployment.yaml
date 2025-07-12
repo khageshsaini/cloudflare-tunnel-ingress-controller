@@ -81,6 +81,12 @@ spec:
               value: {{ .Values.cloudflared.image.pullPolicy | quote }}
             - name: CLOUDFLARED_REPLICA_COUNT
               value: {{ .Values.cloudflared.replicaCount | quote }}
+            - name: CLOUDFLARED_NODE_SELECTOR
+              value: {{ .Values.cloudflared.nodeSelector | toJson | quote }}
+            - name: CLOUDFLARED_TOLERATIONS
+              value: {{ .Values.cloudflared.tolerations | toJson | quote }}
+            - name: CLOUDFLARED_AFFINITY
+              value: {{ .Values.cloudflared.affinity | toJson | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
